@@ -17,8 +17,16 @@ End-to-end tests for the **agentage Memory** product — Obsidian plugin, MCP en
 
 ```bash
 npm install
-OBSIDIAN_BIN=/usr/bin/obsidian COUCHDB_URL=http://localhost:5984 npm run test:obsidian
+
+# Obsidian tier — needs Obsidian (NOT snap; extract an AppImage) + the plugin source + CouchDB
+docker compose up -d                 # CouchDB on :5984
+OBSIDIAN_BIN=/path/to/obsidian \
+OBSIDIAN_PLUGIN_DIR=../obsidian-memory \
+COUCHDB_URL=http://localhost:5984 \
+  npm run test:obsidian
 ```
+
+The plugin must be **built first** (`npm run build` in `agentage/obsidian-memory`) — the test copies `main.js`, `manifest.json`, `styles.css` from `OBSIDIAN_PLUGIN_DIR` into a throwaway vault.
 
 ## Verify
 

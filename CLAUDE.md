@@ -29,10 +29,20 @@ tests/
 helpers/
 ├── gates.ts        # env-var test gates (obsidian, couchdb, mcp, dashboard, landing)
 ├── constants.ts    # shared timeouts — no magic numbers in tests
-└── wait-for.ts     # poll helper
+├── wait-for.ts     # poll helper
+├── couchdb.ts      # CouchDB API client (_up, _all_docs, ensure/drop DB)
+├── vault.ts        # throwaway Obsidian vault fixture (installs + enables the plugin)
+├── obsidian.ts     # Playwright Electron launcher for Obsidian
+└── fixtures.ts     # Playwright fixtures (couchdb + vault + obsidian)
 ```
 
 Each tier gates on env vars (see `.env.example`). Missing vars skip the tier — keeps `verify` runnable anywhere.
+
+### Obsidian tier
+
+- **Binary:** Snap-confined Obsidian doesn't work with Playwright Electron. Extract an AppImage and set `OBSIDIAN_BIN` to the extracted `obsidian` binary.
+- **Plugin source:** `OBSIDIAN_PLUGIN_DIR` points at a clone of `agentage/obsidian-memory` with `npm run build` already done — the fixture copies `main.js`, `manifest.json`, `styles.css` into a throwaway vault under `tmpdir`.
+- **CouchDB:** `docker compose up -d` brings up CouchDB on `:5984` with the same CORS config as `obsidian-memory/docker-compose.yml`.
 
 ## Standards
 

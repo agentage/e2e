@@ -1,0 +1,30 @@
+services:
+  couchdb:
+    image: couchdb:3.4
+    container_name: agentage-e2e-couchdb
+    environment:
+      COUCHDB_USER: admin
+      COUCHDB_PASSWORD: agentage
+    ports:
+      - '5984:5984'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fs http://localhost:5984/_up || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  couchdb-init:
+    image: curlimages/curl:8.11.0
+    depends_on:
+      couchdb:
+        condition: service_healthy
+    restart: 'no'
+    entrypoint: ['/bin/sh']
+    command:
+      - '-c'
+      - |
+        set -eu
+        A=http://admin:agentage@couchdb:5984
+        curl -fsS -X PUT "$$A/_node/_local/_config/httpd/enable_cors" -H 'Content-Type: application/json' -d '"true"' >/dev/null
+        curl -fsS -X PUT "$$A/_node/_local/_config/cors/origins" -H 'Content-Type: application/json' -d '"app://obsidian.md,capacitor://localhost,http://localhost"' >/dev/null
