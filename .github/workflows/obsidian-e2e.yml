@@ -2,29 +2,39 @@ name: Obsidian E2E
 
 on:
   workflow_dispatch:
-    inputs:
-      obsidian-version:
-        description: 'Obsidian release tag (e.g. v1.11.4). Empty = latest.'
-        default: ''
+  pull_request:
+    branches: [master]
+    paths:
+      - 'helpers/obsidian.ts'
+      - 'helpers/vault.ts'
+      - 'helpers/fixtures.ts'
+      - 'tests/obsidian/**'
+      - 'scripts/e2e/**'
+      - '.github/workflows/obsidian-e2e.yml'
 
 concurrency:
-  group: obsidian-e2e-${{ github.event_name }}
+  group: obsidian-e2e-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   obsidian:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout e2e repo
+        uses: actions/checkout@v6
 
-      - name: Checkout obsidian-memory plugin source
+      - name: Checkout agentage/obsidian-memory (plugin source)
         uses: actions/checkout@v6
         with:
           repository: agentage/obsidian-memory
           path: obsidian-memory
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.OBSIDIAN_MEMORY_PAT }}
 
       - uses: actions/setup-node@v6
         with:
@@ -40,44 +50,22 @@ jobs:
           npm ci
           npm run build
 
-      - name: Install xvfb + obsidian AppImage prerequisites
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb libgtk-3-0 libnss3 libasound2t64 libgbm1
+      - name: Install Obsidian + Xvfb + WM
+        run: ./scripts/e2e/install-obsidian.sh
 
-      - name: Download + extract Obsidian AppImage
-        id: obsidian
-        run: |
-          set -eu
-          TAG="${{ github.event.inputs.obsidian-version }}"
-          if [ -z "$TAG" ]; then
-            TAG=$(curl -fsS https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest | jq -r .tag_name)
-          fi
-          VERSION="${TAG#v}"
-          URL="https://github.com/obsidianmd/obsidian-releases/releases/download/${TAG}/Obsidian-${VERSION}.AppImage"
-          curl -fsSL -o obsidian.AppImage "$URL"
-          chmod +x obsidian.AppImage
-          ./obsidian.AppImage --appimage-extract >/dev/null
-          echo "bin=$(pwd)/squashfs-root/obsidian" >> "$GITHUB_OUTPUT"
+      - name: Start Xvfb + window manager
+        run: ./scripts/e2e/start-display.sh
 
-      - name: Start CouchDB
-        run: docker compose up -d couchdb couchdb-init
-
-      - name: Wait for CouchDB
-        run: |
-          for i in $(seq 1 30); do
-            curl -fsS http://localhost:5984/_up && break
-            sleep 1
-          done
-
-      - name: Run obsidian e2e
+      - name: Set up test vault
         env:
-          OBSIDIAN_BIN: ${{ steps.obsidian.outputs.bin }}
-          OBSIDIAN_PLUGIN_DIR: ${{ github.workspace }}/obsidian-memory
-          COUCHDB_URL: http://localhost:5984
-          COUCHDB_USER: admin
-          COUCHDB_PASS: agentage
-        run: xvfb-run --auto-servernum npx playwright test --project=obsidian
+          PLUGIN_ROOT: ${{ github.workspace }}/obsidian-memory
+        run: ./scripts/e2e/setup-vault.sh
+
+      - name: Run Obsidian e2e
+        env:
+          OBSIDIAN_BIN: /opt/Obsidian/obsidian
+          OBSIDIAN_VAULT: /tmp/obsidian-test-vault
+        run: npx playwright test --project=obsidian
 
       - name: Upload report
         if: always()
@@ -88,7 +76,3 @@ jobs:
           path: |
             playwright-report/
             test-results/
-
-      - name: Stop CouchDB
-        if: always()
-        run: docker compose down -v

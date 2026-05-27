@@ -6,27 +6,36 @@ End-to-end tests for the **agentage Memory** product — Obsidian plugin, MCP en
 
 ## Tiers
 
-| Project     | Env var(s) to enable          | Covers                                                     |
-| ----------- | ----------------------------- | ---------------------------------------------------------- |
-| `obsidian`  | `OBSIDIAN_BIN`, `COUCHDB_URL` | Plugin loads, settings tab, push current note, replication |
-| `mcp`       | `MCP_URL`                     | `memory__*` tools over Streamable HTTP + OAuth/PKCE        |
-| `dashboard` | `DASHBOARD_URL`               | Memory dashboard surfaces                                  |
-| `landing`   | `LANDING_URL`                 | Waitlist landing page                                      |
+| Project     | Env var(s) to enable | Covers                                              |
+| ----------- | -------------------- | --------------------------------------------------- |
+| `obsidian`  | `OBSIDIAN_BIN`       | Plugin loads, settings tab, push current note       |
+| `mcp`       | `MCP_URL`            | `memory__*` tools over Streamable HTTP + OAuth/PKCE |
+| `dashboard` | `DASHBOARD_URL`      | Memory dashboard surfaces                           |
+| `landing`   | `LANDING_URL`        | Waitlist landing page                               |
 
-## Run
+Tests gate via `test.skip(!gates.X, '...')` in `beforeAll`. Missing env vars skip the tier — `npm run verify` runs anywhere.
+
+## Run the obsidian tier locally
+
+Needs the Obsidian `.deb` (or an extracted AppImage; **snap won't work**), a checkout of `agentage/obsidian-memory` with the plugin built, and an X display.
 
 ```bash
 npm install
 
-# Obsidian tier — needs Obsidian (NOT snap; extract an AppImage) + the plugin source + CouchDB
-docker compose up -d                 # CouchDB on :5984
-OBSIDIAN_BIN=/path/to/obsidian \
-OBSIDIAN_PLUGIN_DIR=../obsidian-memory \
-COUCHDB_URL=http://localhost:5984 \
+# 1. Bring up Obsidian + window manager + Xvfb
+./scripts/e2e/install-obsidian.sh
+./scripts/e2e/start-display.sh
+
+# 2. Build the plugin elsewhere, then point setup-vault at it
+( cd ../obsidian-memory && npm ci && npm run build )
+PLUGIN_ROOT=$(pwd)/../obsidian-memory ./scripts/e2e/setup-vault.sh
+
+# 3. Run
+OBSIDIAN_BIN=/opt/Obsidian/obsidian \
+OBSIDIAN_VAULT=/tmp/obsidian-test-vault \
+DISPLAY=:99 \
   npm run test:obsidian
 ```
-
-The plugin must be **built first** (`npm run build` in `agentage/obsidian-memory`) — the test copies `main.js`, `manifest.json`, `styles.css` from `OBSIDIAN_PLUGIN_DIR` into a throwaway vault.
 
 ## Verify
 
@@ -36,4 +45,4 @@ npm run verify   # type-check + lint + format:check
 
 ## Standards
 
-Root [CLAUDE.md](../CLAUDE.md) for conventions. Memory product spec: `~/agentage-memory/onepager.md`.
+Root [CLAUDE.md](../CLAUDE.md). Memory product spec: `~/agentage-memory/onepager.md`.
