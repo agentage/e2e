@@ -1,0 +1,41 @@
+{
+  "name": "@agentage/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end tests for the agentage Memory product (Obsidian plugin, MCP endpoint, landing, dashboard).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "test": "npx playwright test",
+    "test:obsidian": "npx playwright test --project=obsidian",
+    "test:mcp": "npx playwright test --project=mcp",
+    "test:dashboard": "npx playwright test --project=dashboard",
+    "test:landing": "npx playwright test --project=landing",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "npm run type-check && npm run lint && npm run format:check"
+  },
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "@types/node": "latest",
+    "@typescript-eslint/eslint-plugin": "latest",
+    "@typescript-eslint/parser": "latest",
+    "eslint": "latest",
+    "eslint-config-prettier": "latest",
+    "eslint-plugin-playwright": "latest",
+    "eslint-plugin-prettier": "latest",
+    "prettier": "latest",
+    "typescript": "latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agentage/e2e.git"
+  },
+  "license": "MIT"
+}
