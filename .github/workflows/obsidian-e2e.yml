@@ -2,18 +2,9 @@ name: Obsidian E2E
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [master]
-    paths:
-      - 'helpers/obsidian.ts'
-      - 'helpers/vault.ts'
-      - 'helpers/fixtures.ts'
-      - 'tests/obsidian/**'
-      - 'scripts/e2e/**'
-      - '.github/workflows/obsidian-e2e.yml'
 
 concurrency:
-  group: obsidian-e2e-${{ github.event.pull_request.number || github.ref }}
+  group: obsidian-e2e-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
