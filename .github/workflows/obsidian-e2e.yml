@@ -1,0 +1,69 @@
+name: Obsidian E2E
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: obsidian-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  obsidian:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout e2e repo
+        uses: actions/checkout@v6
+
+      - name: Checkout agentage/obsidian-memory (plugin source)
+        uses: actions/checkout@v6
+        with:
+          repository: agentage/obsidian-memory
+          path: obsidian-memory
+          token: ${{ secrets.OBSIDIAN_MEMORY_PAT }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install e2e deps
+        run: npm ci
+
+      - name: Build obsidian-memory plugin
+        working-directory: obsidian-memory
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Obsidian + Xvfb + WM
+        run: ./scripts/e2e/install-obsidian.sh
+
+      - name: Start Xvfb + window manager
+        run: ./scripts/e2e/start-display.sh
+
+      - name: Set up test vault
+        env:
+          PLUGIN_ROOT: ${{ github.workspace }}/obsidian-memory
+        run: ./scripts/e2e/setup-vault.sh
+
+      - name: Run Obsidian e2e
+        env:
+          OBSIDIAN_BIN: /opt/Obsidian/obsidian
+          OBSIDIAN_VAULT: /tmp/obsidian-test-vault
+        run: npx playwright test --project=obsidian
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: obsidian-e2e-report
+          retention-days: 7
+          path: |
+            playwright-report/
+            test-results/
