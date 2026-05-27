@@ -2,6 +2,8 @@ name: Obsidian E2E
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * *'
 
 concurrency:
   group: obsidian-e2e-${{ github.ref }}
