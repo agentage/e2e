@@ -21,6 +21,7 @@ npm run verify           # type-check + lint + format:check
 
 ```
 tests/
+├── integration/ # golden-path: write anywhere → read everywhere (gated, skipped until all surfaces land)
 ├── obsidian/    # plugin-loads (smoke) + sync (push/pull/status round-trip vs CouchDB)
 ├── mcp/         # memory__* tools over Streamable HTTP + OAuth/PKCE
 ├── dashboard/   # Memory dashboard
