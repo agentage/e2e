@@ -63,3 +63,31 @@ export const allDocs = async (cfg: CouchDbConfig, name: string): Promise<AllDocs
   }
   return (await res.json()) as AllDocsResponse;
 };
+
+export const putDoc = async (
+  cfg: CouchDbConfig,
+  name: string,
+  doc: { _id: string } & Record<string, unknown>
+): Promise<void> => {
+  const res = await fetch(`${cfg.url}/${name}/${encodeURIComponent(doc._id)}`, {
+    method: 'PUT',
+    headers: { Authorization: authHeader(cfg), 'Content-Type': 'application/json' },
+    body: JSON.stringify(doc),
+  });
+  if (!res.ok) {
+    throw new Error(`CouchDB PUT /${name}/${doc._id} -> ${res.status}: ${await res.text()}`);
+  }
+};
+
+export const waitForDoc = (cfg: CouchDbConfig, name: string, id: string): Promise<void> =>
+  waitFor(
+    async () => {
+      try {
+        const { rows } = await allDocs(cfg, name);
+        return rows.some((r) => r.id === id);
+      } catch {
+        return false;
+      }
+    },
+    { timeout: TIMEOUTS.replication, label: `CouchDB doc '${id}'` }
+  );
