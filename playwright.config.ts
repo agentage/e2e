@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { landingUrl } from './helpers/landing.js';
 
 export default defineConfig({
   testDir: './tests',
@@ -33,7 +34,7 @@ export default defineConfig({
     {
       name: 'landing',
       testDir: './tests/landing',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], baseURL: landingUrl() },
     },
   ],
 });

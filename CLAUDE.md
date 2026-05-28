@@ -34,6 +34,7 @@ helpers/
 ├── couchdb.ts      # CouchDB client (_up, _all_docs, put/wait-for-doc, ensure/drop DB)
 ├── obsidian.ts     # Obsidian launcher: spawn + chromium.connectOverCDP
 ├── plugin.ts       # renderer drivers (run command, open/read note, status icon)
+├── landing.ts      # LANDING_TARGETS {dev,prod} + landingUrl() resolver
 └── vault.ts        # PLUGIN_ID + path helpers
 
 scripts/e2e/
@@ -60,6 +61,13 @@ scripts/e2e/
 - **No window manager → no renderer.** `herbstluftwm` runs against `Xvfb :99` with its panel autostart disabled (default panel.sh crashes on Xvfb).
 - **Plugin source:** `PLUGIN_ROOT` env points at a checkout of `agentage/obsidian-memory` with `npm run build` already done; `scripts/e2e/setup-vault.sh` copies the built artifacts into the throwaway vault and seeds `data.json` pointed at `COUCHDB_URL`.
 - **Sync target:** the plugin is a CouchDB replication client (`${serverUrl}/${dbName}`, doc `_id` = vault path), so the full push/pull round-trip runs against a local CouchDB — a `couchdb:3.4` service container in CI, `docker compose up` locally. The real cloud backend only swaps `COUCHDB_URL` later.
+
+## Landing tier — deployed-site smoke
+
+- Runs against the **deployed** landing (no local build), porting `agentage/web`'s `packages/landing/e2e/smoke.spec.ts` to the live URL.
+- **Target mapping** (`helpers/landing.ts`): `dev` → `dev.agentage.io`, `prod` → `agentage.io`. Resolves from `LANDING_URL`, else `LANDING_ENV` (dev|prod), else **dev**.
+- **The nightly tests dev**; a green dev run gates the dev→prod promotion. Verify prod post-promotion with `LANDING_ENV=prod`.
+- No PAT/secret needed — this is the tier that keeps the nightly non-vacuous today.
 
 ## Nightly + release gate
 
