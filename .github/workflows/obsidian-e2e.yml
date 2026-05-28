@@ -18,6 +18,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
+    services:
+      couchdb:
+        image: couchdb:3.4
+        env:
+          COUCHDB_USER: admin
+          COUCHDB_PASSWORD: agentage
+        ports:
+          - 5984:5984
+        options: >-
+          --health-cmd "curl -fs http://localhost:5984/_up || exit 1"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    env:
+      COUCHDB_URL: http://localhost:5984
+      COUCHDB_USER: admin
+      COUCHDB_PASS: agentage
+      COUCHDB_DB: agentage-memory
+
     steps:
       - name: Checkout e2e repo
         uses: actions/checkout@v6
@@ -42,6 +60,12 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      - name: Enable CouchDB CORS for the Obsidian origin
+        run: |
+          A=http://admin:agentage@localhost:5984
+          curl -fsS -X PUT "$A/_node/_local/_config/httpd/enable_cors" -H 'Content-Type: application/json' -d '"true"'
+          curl -fsS -X PUT "$A/_node/_local/_config/cors/origins" -H 'Content-Type: application/json' -d '"app://obsidian.md,capacitor://localhost,http://localhost"'
 
       - name: Install Obsidian + Xvfb + WM
         run: ./scripts/e2e/install-obsidian.sh

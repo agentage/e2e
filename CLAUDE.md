@@ -21,7 +21,7 @@ npm run verify           # type-check + lint + format:check
 
 ```
 tests/
-├── obsidian/    # Plugin: spawn Obsidian → connectOverCDP → assert in renderer
+├── obsidian/    # plugin-loads (smoke) + sync (push/pull/status round-trip vs CouchDB)
 ├── mcp/         # memory__* tools over Streamable HTTP + OAuth/PKCE
 ├── dashboard/   # Memory dashboard
 └── landing/     # Waitlist landing
@@ -30,8 +30,9 @@ helpers/
 ├── gates.ts        # env-var gates (obsidian, couchdb, mcp, dashboard, landing)
 ├── constants.ts    # shared timeouts — no magic numbers
 ├── wait-for.ts     # poll helper
-├── couchdb.ts      # CouchDB API client (_up, _all_docs, ensure/drop DB)
+├── couchdb.ts      # CouchDB client (_up, _all_docs, put/wait-for-doc, ensure/drop DB)
 ├── obsidian.ts     # Obsidian launcher: spawn + chromium.connectOverCDP
+├── plugin.ts       # renderer drivers (run command, open/read note, status icon)
 └── vault.ts        # PLUGIN_ID + path helpers
 
 scripts/e2e/
@@ -56,7 +57,8 @@ scripts/e2e/
 - **`_electron.launch` hangs.** It waits for the node inspector Obsidian never opens — we spawn directly and attach via `chromium.connectOverCDP`.
 - **GPU process crashes under Xvfb.** `--disable-gpu --disable-software-rasterizer --use-gl=swiftshader` forces software rendering.
 - **No window manager → no renderer.** `herbstluftwm` runs against `Xvfb :99` with its panel autostart disabled (default panel.sh crashes on Xvfb).
-- **Plugin source:** `PLUGIN_ROOT` env points at a checkout of `agentage/obsidian-memory` with `npm run build` already done; `scripts/e2e/setup-vault.sh` symlinks it into the throwaway vault.
+- **Plugin source:** `PLUGIN_ROOT` env points at a checkout of `agentage/obsidian-memory` with `npm run build` already done; `scripts/e2e/setup-vault.sh` copies the built artifacts into the throwaway vault and seeds `data.json` pointed at `COUCHDB_URL`.
+- **Sync target:** the plugin is a CouchDB replication client (`${serverUrl}/${dbName}`, doc `_id` = vault path), so the full push/pull round-trip runs against a local CouchDB — a `couchdb:3.4` service container in CI, `docker compose up` locally. The real cloud backend only swaps `COUCHDB_URL` later.
 
 ## Standards
 

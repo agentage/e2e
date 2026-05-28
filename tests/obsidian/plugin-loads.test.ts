@@ -1,9 +1,9 @@
 /**
  * E2E smoke for the Obsidian plugin.
  *
- * Tests the plugin loads inside a real Obsidian instance and the status bar
- * paints — proves the harness (Xvfb + WM, vault layout, plugin symlink, CDP
- * attach) all works end-to-end.
+ * Tests the plugin loads inside a real Obsidian instance and its status-bar
+ * icon paints — proves the harness (Xvfb + WM, vault layout, plugin symlink,
+ * CDP attach) all works end-to-end.
  *
  * Requires: OBSIDIAN_BIN, OBSIDIAN_VAULT (vault must have the plugin pre-installed
  * via `scripts/e2e/setup-vault.sh`).
@@ -11,7 +11,7 @@
 import { test, expect } from '@playwright/test';
 import { gates } from '../../helpers/gates.js';
 import { launchObsidian, type ObsidianApp } from '../../helpers/obsidian.js';
-import { PLUGIN_ID } from '../../helpers/vault.js';
+import { waitForPluginEnabled } from '../../helpers/plugin.js';
 
 test.setTimeout(180_000);
 
@@ -26,21 +26,14 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test('plugin loads and status bar reports memory state', async () => {
+test('plugin loads and renders its status-bar icon', async () => {
   const page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
 
-  const title = (await page.title()).toLowerCase();
-  expect(title).toContain('obsidian');
+  expect((await page.title()).toLowerCase()).toContain('obsidian');
 
-  await page.waitForFunction(
-    (id: string) => {
-      const a = globalThis as { app?: { plugins?: { enabledPlugins?: Set<string> } } };
-      return a.app?.plugins?.enabledPlugins instanceof Set && a.app.plugins.enabledPlugins.has(id);
-    },
-    PLUGIN_ID,
-    { timeout: 60_000 }
-  );
+  await waitForPluginEnabled(page);
 
-  await expect(page.locator('.status-bar')).toContainText(/memory:/i);
+  const icon = page.locator('.agentage-memory-status-icon').first();
+  await expect(icon).toHaveAttribute('data-status', /idle|active|synced|error/);
 });
