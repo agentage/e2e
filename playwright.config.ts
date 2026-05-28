@@ -14,6 +14,10 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'integration',
+      testDir: './tests/integration',
+    },
+    {
       name: 'obsidian',
       testDir: './tests/obsidian',
     },
