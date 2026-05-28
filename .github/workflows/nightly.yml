@@ -1,0 +1,131 @@
+name: Nightly E2E
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      couchdb:
+        image: couchdb:3.4
+        env:
+          COUCHDB_USER: admin
+          COUCHDB_PASSWORD: agentage
+        ports:
+          - 5984:5984
+        options: >-
+          --health-cmd "curl -fs http://localhost:5984/_up || exit 1"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    env:
+      COUCHDB_URL: http://localhost:5984
+      COUCHDB_USER: admin
+      COUCHDB_PASS: agentage
+      COUCHDB_DB: agentage-memory
+
+    steps:
+      - name: Checkout e2e repo
+        uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install e2e deps
+        run: npm ci
+
+      # The obsidian tier needs the private plugin repo. It only runs when the
+      # cross-repo PAT is configured; otherwise that tier skips and the rest of
+      # the suite still runs — a missing secret degrades, it doesn't hard-fail.
+      - name: Detect obsidian tier availability
+        id: guard
+        run: echo "obsidian=${{ secrets.OBSIDIAN_MEMORY_PAT != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout agentage/obsidian-memory (plugin source)
+        if: steps.guard.outputs.obsidian == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: agentage/obsidian-memory
+          path: obsidian-memory
+          token: ${{ secrets.OBSIDIAN_MEMORY_PAT }}
+
+      - name: Build obsidian-memory plugin
+        if: steps.guard.outputs.obsidian == 'true'
+        working-directory: obsidian-memory
+        run: |
+          npm ci
+          npm run build
+
+      - name: Enable CouchDB CORS for the Obsidian origin
+        run: |
+          A=http://admin:agentage@localhost:5984
+          curl -fsS -X PUT "$A/_node/_local/_config/httpd/enable_cors" -H 'Content-Type: application/json' -d '"true"'
+          curl -fsS -X PUT "$A/_node/_local/_config/cors/origins" -H 'Content-Type: application/json' -d '"app://obsidian.md,capacitor://localhost,http://localhost"'
+
+      - name: Install Obsidian + Xvfb + WM
+        if: steps.guard.outputs.obsidian == 'true'
+        run: ./scripts/e2e/install-obsidian.sh
+
+      - name: Start Xvfb + window manager
+        if: steps.guard.outputs.obsidian == 'true'
+        run: ./scripts/e2e/start-display.sh
+
+      - name: Set up test vault
+        if: steps.guard.outputs.obsidian == 'true'
+        env:
+          PLUGIN_ROOT: ${{ github.workspace }}/obsidian-memory
+        run: ./scripts/e2e/setup-vault.sh
+
+      - name: Export OBSIDIAN_BIN when the tier is set up
+        if: steps.guard.outputs.obsidian == 'true'
+        run: |
+          echo "OBSIDIAN_BIN=/opt/Obsidian/obsidian" >> "$GITHUB_ENV"
+          echo "OBSIDIAN_VAULT=/tmp/obsidian-test-vault" >> "$GITHUB_ENV"
+
+      - name: Run full e2e suite
+        run: npx playwright test
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-report
+          retention-days: 7
+          path: |
+            playwright-report/
+            test-results/
+
+      - name: File an issue on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const title = `Nightly e2e failed — ${new Date().toISOString().split('T')[0]}`;
+            const body = [
+              '## Nightly e2e red',
+              '',
+              `**Run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              'A red nightly blocks the Friday release/promotion gate. Treat as an active incident.',
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['nightly-failure'],
+            });
