@@ -61,6 +61,7 @@ scripts/e2e/
 - **`_electron.launch` hangs.** It waits for the node inspector Obsidian never opens — we spawn directly and attach via `chromium.connectOverCDP`.
 - **GPU process crashes under Xvfb.** `--disable-gpu --disable-software-rasterizer --use-gl=swiftshader` forces software rendering.
 - **No window manager → no renderer.** `herbstluftwm` runs against `Xvfb :99` with its panel autostart disabled (default panel.sh crashes on Xvfb).
+- **`secretStorage` needs `--password-store=basic`.** The plugin keeps creds in `app.secretStorage` (Electron `safeStorage`), which wants an OS keyring; headless CI (root, no libsecret) has none, so `safeStorage` throws and `onload` aborts before the status icon renders. Launching with `--password-store=basic` (see `helpers/obsidian.ts`) uses a built-in key instead.
 - **Plugin source:** `PLUGIN_ROOT` env points at a checkout of `agentage/obsidian-memory` with `npm run build` already done; `scripts/e2e/setup-vault.sh` copies the built artifacts into the throwaway vault and seeds `data.json` pointed at `COUCHDB_URL`.
 - **Sync target:** the plugin is a CouchDB replication client (`${serverUrl}/${dbName}`, doc `_id` = vault path), so the full push/pull round-trip runs against a local CouchDB — a `couchdb:3.4` service container in CI, `docker compose up` locally. The real cloud backend only swaps `COUCHDB_URL` later.
 
@@ -76,8 +77,7 @@ scripts/e2e/
 - **`nightly.yml`** (cron 04:00 UTC) is the health signal: runs the full suite against a CouchDB service container, files an issue on red. The obsidian tier auto-activates only when `OBSIDIAN_MEMORY_PAT` is set — absent, it degrades (skips) rather than hard-failing.
 - **Two dispatches off one green signal, both daily:**
   - **`promote`:** on a **green** nightly → `repository_dispatch: promote-production` to `agentage/web` → `deploy.yml` promotes landing to agentage.io. Inert until `WEB_DISPATCH_PAT` is set. **Precondition holds:** the nightly runs a real tier (landing smoke), so green isn't vacuous.
-  - **`release`:** on a **green** nightly → `repository_dispatch: release-plugin` to `agentage/obsidian-memory`. Inert until `RELEASE_DISPATCH_PAT` is set **and** the target repo accepts the dispatch.
-- **Companion change still needed:** `agentage/obsidian-memory`'s `release.yml` is tag-triggered only — add a `repository_dispatch: [release-plugin]` trigger (that bumps version + pushes the tag) before the weekly release does anything. Same pattern for cli later.
+  - **`release`:** on a **green** nightly → `repository_dispatch: release-plugin` to `agentage/obsidian-memory`, which auto-bumps the patch version + publishes (its `release.yml` accepts the dispatch as of obsidian-memory#24). Inert until `RELEASE_DISPATCH_PAT` is set. Same pattern for cli later.
 - `obsidian-e2e.yml` is `workflow_dispatch`-only (targeted obsidian runs); the nightly owns the cron.
 - **`test-stability.yml`** (PR flake gate): when a PR touches any `tests/**/*.test.ts`, it runs exactly those files `--repeat-each=10` so an intermittent failure is caught before it lands. No-ops when no test changed.
 

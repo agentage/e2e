@@ -56,6 +56,12 @@ export const launchObsidian = async (opts: LaunchOptions = {}): Promise<Obsidian
     '--disable-gpu',
     '--disable-software-rasterizer',
     '--use-gl=swiftshader',
+    // The plugin stores creds in app.secretStorage (Electron safeStorage), which
+    // needs an OS keyring. Headless CI (root, no libsecret) has none, so safeStorage
+    // throws and the plugin's onload aborts — no status icon, no replication. The
+    // `basic` backend encrypts with a built-in key instead of the keyring, so
+    // secretStorage works without one.
+    '--password-store=basic',
     `--remote-debugging-port=${cdpPort}`,
     '--remote-allow-origins=*'
   );
