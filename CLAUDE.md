@@ -29,7 +29,7 @@ tests/
 └── landing/     # Waitlist landing
 
 helpers/
-├── gates.ts        # env-var gates (obsidian, couchdb, mcp, dashboard, landing)
+├── gates.ts        # backing-service gates (obsidian, couchdb, mcp, dashboard) — deployed-site tiers don't gate
 ├── constants.ts    # shared timeouts — no magic numbers
 ├── wait-for.ts     # poll helper
 ├── couchdb.ts      # CouchDB client (_up, _all_docs, put/wait-for-doc, ensure/drop DB)
@@ -50,7 +50,7 @@ scripts/e2e/
 - One file per feature; kebab-case `<feature>.test.ts`
 - `import { test, expect } from '@playwright/test'` — no fixtures wrapper
 - File-level top comment: what it covers + required env vars
-- Gate via `test.skip(!gates.X, '...')` in `beforeAll` — not `testIf`
+- Gate backing-service tiers via `test.skip(!gates.X, '...')` at the top of the describe/beforeAll. Deployed-site tiers (landing/backend/dashboard) don't gate — they always hit a resolved target
 - Per-file lifecycle: `let app; test.beforeAll/afterAll`
 - Shared helpers in `helpers/<concern>.ts` (flat); page objects in `helpers/pages/<feature>.page.ts` with an `index.ts` re-export
 - TID registry in `helpers/selectors.ts`; timeouts in `helpers/constants.ts`
