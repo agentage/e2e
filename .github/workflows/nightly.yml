@@ -132,3 +132,27 @@ jobs:
               body,
               labels: ['nightly-failure'],
             });
+
+  # Green scheduled nightly → promote dev to prod (agentage.io). Dispatch-only
+  # on `schedule` so manual nightly test runs never touch prod. Inert until
+  # WEB_DISPATCH_PAT (a PAT that can fire repository_dispatch on agentage/web)
+  # is set. For a weekly cadence instead of nightly, gate on the day-of-week.
+  promote:
+    name: 🚀 Promote dev → prod (on green)
+    needs: e2e
+    if: needs.e2e.result == 'success' && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect promote token
+        id: g
+        run: echo "ok=${{ secrets.WEB_DISPATCH_PAT != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch production promotion to agentage/web
+        if: steps.g.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.WEB_DISPATCH_PAT }}
+        run: gh api repos/agentage/web/dispatches -f event_type=promote-production
+
+      - name: Skip (no promote token)
+        if: steps.g.outputs.ok != 'true'
+        run: echo "WEB_DISPATCH_PAT not set — skipping promotion. Set it to enable auto-promote."
