@@ -15,7 +15,7 @@ test.describe(`Landing @ ${landingUrl()} — SSR`, () => {
     expect(res.status()).toBe(200);
     const html = await res.text();
     expect(html).toContain('Every AI remembers');
-    expect(html).toContain('npx @agentage/memory connect');
+    expect(html).toContain('npx @agentage/cli setup');
     expect(html).toContain('memory.agentage.io');
   });
 });
@@ -25,7 +25,7 @@ test.describe('Landing — Home', () => {
     await page.goto('/');
     await expect(page.locator('h1')).toContainText('Connect once.');
     await expect(page.locator('h1')).toContainText('Every AI remembers');
-    await expect(page.getByText('npx @agentage/memory connect')).toBeVisible();
+    await expect(page.getByText('npx @agentage/cli setup')).toBeVisible();
     await expect(page.getByText('memory.agentage.io')).toBeVisible();
   });
 
@@ -96,7 +96,7 @@ test.describe('Landing — Footer', () => {
 test.describe('Landing — Routes', () => {
   test('/docs renders', async ({ page }) => {
     await page.goto('/docs');
-    await expect(page.locator('h1')).toContainText('Docs');
+    await expect(page.locator('h1')).toContainText('Get started');
   });
   // NB: deployed /dashboard is the separate dashboard app (h1 "Overview"), not
   // landing's placeholder — it belongs to the dashboard tier, not this smoke.
