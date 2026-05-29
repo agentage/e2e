@@ -13,6 +13,10 @@ export default defineConfig({
   use: {
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Deployed targets are slower than localhost; bound nav/actions so a stall
+    // fails fast and legibly instead of consuming the whole 180s test timeout.
+    navigationTimeout: 30_000,
+    actionTimeout: 15_000,
   },
   projects: [
     {
