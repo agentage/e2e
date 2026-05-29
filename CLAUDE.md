@@ -72,7 +72,7 @@ scripts/e2e/
 ## Nightly + release gate
 
 - **`nightly.yml`** (cron 04:00 UTC) is the health signal: runs the full suite against a CouchDB service container, files an issue on red. The obsidian tier auto-activates only when `OBSIDIAN_MEMORY_PAT` is set — absent, it degrades (skips) rather than hard-failing.
-- **Auto-promote (built):** the `promote` job fires on a **green scheduled** nightly → `repository_dispatch: promote-production` to `agentage/web` → `deploy.yml` promotes landing to agentage.io. Schedule-only (manual nightly runs never touch prod) + inert until `WEB_DISPATCH_PAT` is set. Flip to weekly by gating on day-of-week. **Precondition holds:** the nightly now runs a real tier (landing smoke), so green isn't vacuous.
+- **Auto-promote (built + live):** the `promote` job fires on a **green** nightly (`schedule` auto, or `workflow_dispatch` manual) → `repository_dispatch: promote-production` to `agentage/web` → `deploy.yml` promotes landing to agentage.io. Only ever promotes on green. Inert until `WEB_DISPATCH_PAT` is set. Flip to weekly by gating on day-of-week. **Precondition holds:** the nightly runs a real tier (landing smoke), so green isn't vacuous.
 - **Still planned:** obsidian-memory plugin release dispatch (+ cli later) on the same green signal.
 - `obsidian-e2e.yml` is `workflow_dispatch`-only (targeted obsidian runs); the nightly owns the cron.
 

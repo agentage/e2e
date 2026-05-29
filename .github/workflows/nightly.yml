@@ -133,14 +133,14 @@ jobs:
               labels: ['nightly-failure'],
             });
 
-  # Green scheduled nightly → promote dev to prod (agentage.io). Dispatch-only
-  # on `schedule` so manual nightly test runs never touch prod. Inert until
-  # WEB_DISPATCH_PAT (a PAT that can fire repository_dispatch on agentage/web)
-  # is set. For a weekly cadence instead of nightly, gate on the day-of-week.
+  # Green nightly → promote dev to prod (agentage.io). Runs on `schedule` (auto)
+  # or `workflow_dispatch` (manual promote / verification) — only ever when the
+  # suite is green. Inert until WEB_DISPATCH_PAT (a PAT that can fire
+  # repository_dispatch on agentage/web) is set. Weekly cadence = day-of-week guard.
   promote:
     name: 🚀 Promote dev → prod (on green)
     needs: e2e
-    if: needs.e2e.result == 'success' && github.event_name == 'schedule'
+    if: needs.e2e.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Detect promote token
