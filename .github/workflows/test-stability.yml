@@ -1,0 +1,65 @@
+name: Test Stability
+
+# Flake gate: when a PR modifies any tests/**/*.test.ts, run exactly those files
+# 10× (Playwright --repeat-each) so an intermittently-failing test is caught
+# before it lands and starts poisoning the nightly. No-ops when no test changed.
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: stability-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  repeat-changed-tests:
+    name: Repeat changed tests 10×
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      REPEAT: 10
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed test files
+        id: changed
+        run: |
+          FILES=$(git diff --name-only --diff-filter=d \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            -- tests/ | grep -E '\.test\.ts$' | tr '\n' ' ' || true)
+          echo "files=${FILES}" >> "$GITHUB_OUTPUT"
+          echo "any=$([ -n "${FILES}" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "Changed test files: ${FILES:-<none>}"
+
+      - uses: actions/setup-node@v6
+        if: steps.changed.outputs.any == 'true'
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.changed.outputs.any == 'true'
+        run: npm ci
+
+      - name: Install Playwright chromium
+        if: steps.changed.outputs.any == 'true'
+        run: npx playwright install --with-deps chromium
+
+      # Deployed-site tiers run against dev; backing-service tiers (obsidian/mcp/
+      # integration) self-skip when their gate env vars are absent, so repeating
+      # them 10× is harmless. Only the changed files run.
+      - name: Repeat changed tests ${{ env.REPEAT }}×
+        if: steps.changed.outputs.any == 'true'
+        run: npx playwright test ${{ steps.changed.outputs.files }} --repeat-each=${{ env.REPEAT }}
+
+      - name: Nothing to repeat
+        if: steps.changed.outputs.any != 'true'
+        run: echo "No tests/**/*.test.ts changed — stability check is a no-op for this PR."
