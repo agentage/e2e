@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 4 * * *'
   workflow_dispatch:
+    inputs:
+      force_release:
+        description: 'Force the weekly release dispatch even if today is not Friday (UTC). Still requires green + RELEASE_DISPATCH_PAT.'
+        type: boolean
+        default: false
 
 concurrency:
   group: nightly-${{ github.ref }}
@@ -133,10 +138,12 @@ jobs:
               labels: ['nightly-failure'],
             });
 
-  # Green nightly → promote dev to prod (agentage.io). Runs on `schedule` (auto)
-  # or `workflow_dispatch` (manual promote / verification) — only ever when the
-  # suite is green. Inert until WEB_DISPATCH_PAT (a PAT that can fire
-  # repository_dispatch on agentage/web) is set. Weekly cadence = day-of-week guard.
+  # Green nightly → promote dev to prod (agentage.io), every night. Runs on
+  # `schedule` (auto) or `workflow_dispatch` (manual promote / verification) —
+  # only ever when the suite is green. Inert until WEB_DISPATCH_PAT (a PAT that
+  # can fire repository_dispatch on agentage/web) is set. The landing site
+  # promotes nightly; library/plugin releases batch weekly (see the `release`
+  # job below).
   promote:
     name: 🚀 Promote dev → prod (on green)
     needs: e2e
@@ -156,3 +163,40 @@ jobs:
       - name: Skip (no promote token)
         if: steps.g.outputs.ok != 'true'
         run: echo "WEB_DISPATCH_PAT not set — skipping promotion. Set it to enable auto-promote."
+
+  # Green nightly + Friday → weekly library/plugin release. Separate cadence from
+  # the nightly `promote`: this batches releases to a weekly rhythm (Fri UTC, or
+  # a forced workflow_dispatch). Inert until RELEASE_DISPATCH_PAT is set AND each
+  # target repo accepts a `release-*` repository_dispatch (companion change in
+  # agentage/obsidian-memory whose release.yml is currently tag-only).
+  release:
+    name: 📦 Weekly release (Fri, on green)
+    needs: e2e
+    if: needs.e2e.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gate on cadence + token
+        id: g
+        env:
+          FORCE: ${{ github.event.inputs.force_release }}
+          TOKEN_SET: ${{ secrets.RELEASE_DISPATCH_PAT != '' }}
+        run: |
+          if [ "$TOKEN_SET" != "true" ]; then
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "RELEASE_DISPATCH_PAT not set — skipping release. Set it to enable weekly releases."
+            exit 0
+          fi
+          DOW=$(date -u +%u) # 1=Mon … 5=Fri … 7=Sun
+          if [ "$DOW" = "5" ] || [ "$FORCE" = "true" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+            echo "Release gate OPEN (dow=$DOW, force=$FORCE)."
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Not Friday (dow=$DOW) and not forced — skipping weekly release."
+          fi
+
+      - name: Dispatch plugin release to agentage/obsidian-memory
+        if: steps.g.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_DISPATCH_PAT }}
+        run: gh api repos/agentage/obsidian-memory/dispatches -f event_type=release-plugin
