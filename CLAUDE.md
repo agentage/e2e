@@ -74,8 +74,10 @@ scripts/e2e/
 ## Nightly + release gate
 
 - **`nightly.yml`** (cron 04:00 UTC) is the health signal: runs the full suite against a CouchDB service container, files an issue on red. The obsidian tier auto-activates only when `OBSIDIAN_MEMORY_PAT` is set — absent, it degrades (skips) rather than hard-failing.
-- **Auto-promote (built + live):** the `promote` job fires on a **green** nightly (`schedule` auto, or `workflow_dispatch` manual) → `repository_dispatch: promote-production` to `agentage/web` → `deploy.yml` promotes landing to agentage.io. Only ever promotes on green. Inert until `WEB_DISPATCH_PAT` is set. Flip to weekly by gating on day-of-week. **Precondition holds:** the nightly runs a real tier (landing smoke), so green isn't vacuous.
-- **Still planned:** obsidian-memory plugin release dispatch (+ cli later) on the same green signal.
+- **Two cadences off one green signal:**
+  - **`promote` (nightly):** on a **green** nightly → `repository_dispatch: promote-production` to `agentage/web` → `deploy.yml` promotes landing to agentage.io. Runs every night. Inert until `WEB_DISPATCH_PAT` is set. **Precondition holds:** the nightly runs a real tier (landing smoke), so green isn't vacuous.
+  - **`release` (weekly):** on a **green** nightly **and Friday (UTC)** → `repository_dispatch: release-plugin` to `agentage/obsidian-memory`. Batches library/plugin releases to a weekly rhythm. Force off-cadence with the `force_release` workflow_dispatch input. Inert until `RELEASE_DISPATCH_PAT` is set **and** the target repo accepts the dispatch.
+- **Companion change still needed:** `agentage/obsidian-memory`'s `release.yml` is tag-triggered only — add a `repository_dispatch: [release-plugin]` trigger (that bumps version + pushes the tag) before the weekly release does anything. Same pattern for cli later.
 - `obsidian-e2e.yml` is `workflow_dispatch`-only (targeted obsidian runs); the nightly owns the cron.
 - **`test-stability.yml`** (PR flake gate): when a PR touches any `tests/**/*.test.ts`, it runs exactly those files `--repeat-each=10` so an intermittent failure is caught before it lands. No-ops when no test changed.
 
