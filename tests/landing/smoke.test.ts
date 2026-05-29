@@ -70,7 +70,9 @@ test.describe('Landing — Header', () => {
     const toggle = page.locator('button[aria-label="Toggle menu"]');
     await expect(toggle).toBeVisible();
     await toggle.click();
-    await expect(page.locator('nav').nth(1).locator('a', { hasText: 'Docs' })).toBeVisible();
+    // Scope to the header's second nav (mobile menu) so footer-nav changes can't
+    // shift the index out from under this assertion.
+    await expect(page.locator('header nav').nth(1).locator('a', { hasText: 'Docs' })).toBeVisible();
   });
 });
 

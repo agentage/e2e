@@ -5,13 +5,29 @@
  */
 import { test, expect } from '@playwright/test';
 
-test('GET /api/health returns the ok envelope', async ({ request }) => {
-  const res = await request.get('/api/health');
-  expect(res.status()).toBe(200);
-  expect(res.headers()['content-type']).toContain('application/json');
+interface HealthBody {
+  success?: boolean;
+  data?: { status?: string; service?: string };
+}
 
-  const body = await res.json();
+test('GET /api/health returns the ok envelope', async ({ request }) => {
+  // A freshly-deployed/idle API can cold-start; poll briefly so the gate keys
+  // on the steady state rather than one-shot failing on the first slow hit.
+  let body: HealthBody = {};
+  await expect
+    .poll(
+      async () => {
+        const res = await request.get('/api/health');
+        if (res.status() !== 200) return res.status();
+        if (!res.headers()['content-type']?.includes('application/json')) return 'not-json';
+        body = (await res.json()) as HealthBody;
+        return 200;
+      },
+      { timeout: 30_000, intervals: [500, 1000, 2000, 5000] }
+    )
+    .toBe(200);
+
   expect(body.success).toBe(true);
-  expect(body.data.status).toBe('ok');
-  expect(body.data.service).toBe('@agentage/backend');
+  expect(body.data?.status).toBe('ok');
+  expect(body.data?.service).toBe('@agentage/backend');
 });
