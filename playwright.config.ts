@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { landingUrl } from './helpers/landing.js';
+import { siteUrl } from './helpers/site.js';
 
 export default defineConfig({
   testDir: './tests',
@@ -27,9 +28,14 @@ export default defineConfig({
       testDir: './tests/mcp',
     },
     {
+      name: 'backend',
+      testDir: './tests/backend',
+      use: { baseURL: siteUrl() },
+    },
+    {
       name: 'dashboard',
       testDir: './tests/dashboard',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], baseURL: siteUrl() },
     },
     {
       name: 'landing',

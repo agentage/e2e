@@ -24,7 +24,8 @@ tests/
 ├── integration/ # golden-path: write anywhere → read everywhere (gated, skipped until all surfaces land)
 ├── obsidian/    # plugin-loads (smoke) + sync (push/pull/status round-trip vs CouchDB)
 ├── mcp/         # memory__* tools over Streamable HTTP + OAuth/PKCE
-├── dashboard/   # Memory dashboard
+├── backend/     # /api/health smoke (deployed API)
+├── dashboard/   # /dashboard loads + login form (unauth smoke)
 └── landing/     # Waitlist landing
 
 helpers/
@@ -35,6 +36,7 @@ helpers/
 ├── obsidian.ts     # Obsidian launcher: spawn + chromium.connectOverCDP
 ├── plugin.ts       # renderer drivers (run command, open/read note, status icon)
 ├── landing.ts      # LANDING_TARGETS {dev,prod} + landingUrl() resolver
+├── site.ts         # SITE_TARGETS {dev,prod} + siteUrl() (backend + dashboard base)
 └── vault.ts        # PLUGIN_ID + path helpers
 
 scripts/e2e/

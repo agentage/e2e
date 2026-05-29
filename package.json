@@ -13,6 +13,7 @@
     "test:integration": "npx playwright test --project=integration",
     "test:obsidian": "npx playwright test --project=obsidian",
     "test:mcp": "npx playwright test --project=mcp",
+    "test:backend": "npx playwright test --project=backend",
     "test:dashboard": "npx playwright test --project=dashboard",
     "test:landing": "npx playwright test --project=landing",
     "type-check": "tsc --noEmit",
