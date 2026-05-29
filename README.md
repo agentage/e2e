@@ -6,14 +6,21 @@ End-to-end tests for the **agentage Memory** product — Obsidian plugin, MCP en
 
 ## Tiers
 
-| Project     | Env var(s) to enable | Covers                                              |
-| ----------- | -------------------- | --------------------------------------------------- |
-| `obsidian`  | `OBSIDIAN_BIN`       | Plugin loads, settings tab, push current note       |
-| `mcp`       | `MCP_URL`            | `memory__*` tools over Streamable HTTP + OAuth/PKCE |
-| `dashboard` | `DASHBOARD_URL`      | Memory dashboard surfaces                           |
-| `landing`   | `LANDING_URL`        | Waitlist landing page                               |
+**Always-on — deployed-site smoke.** No secret needed; targets a live URL, so the nightly is never vacuous. Pick the target with `SITE_ENV` / `LANDING_ENV` (`dev` | `prod`, default `dev`) or an explicit `SITE_URL` / `LANDING_URL`.
 
-Tests gate via `test.skip(!gates.X, '...')` in `beforeAll`. Missing env vars skip the tier — `npm run verify` runs anywhere.
+| Project     | Target               | Covers                                        |
+| ----------- | -------------------- | --------------------------------------------- |
+| `landing`   | `landingUrl()`       | SSR hero, waitlist form, header/footer, /docs |
+| `backend`   | `siteUrl()` + `/api` | `/api/health` envelope                        |
+| `dashboard` | `siteUrl()`          | `/dashboard` + login form (unauthenticated)   |
+
+**Gated — needs a backing service.** Skips via `test.skip(!gates.X, '...')` when the env var is absent, so `npm run verify` and the nightly still run everywhere.
+
+| Project       | Gate (env var)                     | Covers                                              |
+| ------------- | ---------------------------------- | --------------------------------------------------- |
+| `obsidian`    | `OBSIDIAN_BIN` (+ `COUCHDB_URL`)   | Plugin loads + push/pull/status round-trip          |
+| `mcp`         | `MCP_URL`                          | `memory__*` tools over Streamable HTTP + OAuth/PKCE |
+| `integration` | all of the above + `DASHBOARD_URL` | Golden-path: write anywhere → read everywhere       |
 
 ## Run the obsidian tier locally
 
