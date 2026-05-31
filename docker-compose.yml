@@ -5,6 +5,13 @@ services:
     environment:
       COUCHDB_USER: admin
       COUCHDB_PASSWORD: agentage
+    # JWT auth (mirrors the deployed sync-db) so the sync-bootstrap test can
+    # exercise per-tenant bearer tokens. Basic auth still works via the default
+    # handler, so the Basic-creds sync.test.ts is unaffected.
+    # NOT :ro — the couchdb entrypoint chowns etc/ at startup and a read-only
+    # mount makes it exit 1. The file is config, never written by CouchDB.
+    volumes:
+      - ./scripts/e2e/sync-jwt.ini:/opt/couchdb/etc/local.d/sync-jwt.ini
     ports:
       - '5984:5984'
     healthcheck:
